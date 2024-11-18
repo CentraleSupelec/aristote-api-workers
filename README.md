@@ -68,16 +68,52 @@ This diagram shows how the pipeline works:
 
 ![img](assets/pipeline.png)
 
-## Getting Started: Use Aristote with Docker (Recommended)
+<!-- Aristote is based on two services. One service deploys the LLM through a vLLM server. The other manages the metadata and quiz generation by calling the LLM. -->
+
+## Deploy the Aristote Enrichment Worker with an external LLM API
+
+Change **VLLM_API_URL** environment variable in .env to the URL of the API (example : https://api.openai.com/v1/chat/completions) and optionally set **VLLM_TOKEN** if authentification is needed.
+
+```bash
+docker build -t aristote -f server/Dockerfile . && docker run --env-file .env --network="host" -p 3000:3000 --name aristote aristote
+```
+
+**Warning:** `--network="host"` only works on Linux.
+
+## Aristote Workflow
+
+The below scripts do the following :
+
+1. Request a job from AristoteAPI
+2. If a job is returned by AristoteAPI, extract relevent information from the response and handle the job
+3. Send back the result of the treatment to AristoteAPI
+
+### Quiz Generation
+
+```bash
+docker exec -it aristote python aristote/generate_quizz.py
+```
+
+### Generate Translations
+
+```bash
+docker exec -it aristote python aristote/translate_quizz.py
+```
+
+### Quiz Evaluation
+
+```bash
+docker exec -it aristote python aristote/evaluate_quizz.py
+```
+
+## Deploy the Aristote Enrichment Worker with a local LLM
 
 ### Prerequisites
 
 - Docker and Docker Compose (recommended)
 - 16GB+ GPU VRAM for running Llama 3 8B
 
-<!-- Aristote is based on two services. One service deploys the LLM through a vLLM server. The other manages the metadata and quiz generation by calling the LLM. -->
-
-### Quick Start with Docker Compose (Recommended)
+### With docker-compose file
 
 1. Copy .env.dist to .env and configure as needed.
 2. Run: `docker compose up`
@@ -101,13 +137,10 @@ docker run --runtime nvidia --gpus all \
     --dtype bfloat16 \
     --tensor-parallel-size 1
 ```
-
-#### Quiz Generation Service
-
+##### Quiz Generation Service
 ```bash
-docker build -t aristote -f server/Dockerfile . && docker run --env-file .env --network="host" -p 3000:3000 aristote
+docker build -t aristote -f server/Dockerfile . && docker run --env-file .env --network="host" -p 3000:3000 --name aristote aristote
 ```
-
 **Warning:** `--network="host"` only works on Linux.
 
 ## CLI Usage (for local testing without Docker)
@@ -138,7 +171,7 @@ pip install .
 aristote generate-metadata {METADATA_YML_CONFIG_PATH}
 ```
 
-EExamples of configs are [here](configs/openai_models/metadata_generation.yml) to use an OpenAI model and [here](configs/hf_models/metadata_generation.yml) for a HuggingFace model deployed through a `/v1/chat/completions` route.
+Examples of configs are [here](configs/openai_models/metadata_generation.yml) to use an OpenAI model and [here](configs/hf_models/metadata_generation.yml) for a HuggingFace model deployed through a `/v1/chat/completions` route.
 
 ### Generate quizzes
 
